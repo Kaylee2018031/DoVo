@@ -1463,6 +1463,11 @@ function selAns(idx,btn){
     document.getElementById('fbMsg').innerHTML=`<span style="color:var(--accent)">${msgs[Math.floor(Math.random()*msgs.length)]}</span> +10 points`;
     qIdx++;if(!retryMode)lvProg[curLv]=Math.max(lvProg[curLv],qIdx);
     updateUI();saveProgress();
+    // 10문제마다 중간 기록 전송
+    if(qIdx%10===0&&qIdx<lvWords.length){
+      const midAcc=Math.round((lvPts/(qIdx*10))*100);
+      sendToSheet('단어(진행중)',(V[curLv].label||'Level '+curLv)+' '+qIdx+'문제',lvPts,midAcc,wrongCount,totalDon);
+    }
     // 정답이면 1초 후 자동으로 다음 문제
     autoTimer=setTimeout(()=>{autoTimer=null;loadQ()},1000);
   } else {
@@ -1554,15 +1559,15 @@ function saveProgress(){
       lp:lvProg,
       pp:p2Prog
     };
-    location.hash=encodeURIComponent(JSON.stringify(data));
+    localStorage.setItem('dovo_save',JSON.stringify(data));
   }catch(e){console.log('Save error:',e)}
 }
 
 function loadProgress(){
   try{
-    const hash=decodeURIComponent(location.hash.slice(1));
-    if(!hash)return;
-    const d=JSON.parse(hash);
+    const raw=localStorage.getItem('dovo_save');
+    if(!raw)return;
+    const d=JSON.parse(raw);
     studentName=d.n||'';
     sheetUrl=d.u||'';
     totalPts=d.tp||0;
@@ -1571,6 +1576,16 @@ function loadProgress(){
     if(d.pp){for(let k in d.pp)p2Prog[k]=d.pp[k]}
   }catch(e){console.log('Load error:',e)}
 }
+
+// Migrate from old URL hash storage if exists
+try{
+  const oldHash=decodeURIComponent(location.hash.slice(1));
+  if(oldHash){
+    const od=JSON.parse(oldHash);
+    if(od.n)localStorage.setItem('dovo_save',JSON.stringify(od));
+    location.hash='';
+  }
+}catch(e){}
 
 // Load saved progress on startup
 loadProgress();
